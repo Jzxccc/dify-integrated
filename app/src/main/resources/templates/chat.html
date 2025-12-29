@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         #chat-container {
-            height: 70vh;
+            height: 60vh;
             overflow-y: auto;
             border: 1px solid #ddd;
             padding: 15px;
@@ -27,6 +27,28 @@
         .agent-message {
             background-color: #f8d7da;
         }
+        .session-controls {
+            margin-bottom: 15px;
+        }
+        .session-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .session-item {
+            padding: 5px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .session-item:hover {
+            background-color: #f0f0f0;
+        }
+        .current-session {
+            font-weight: bold;
+            color: #007bff;
+        }
     </style>
 </head>
 <body>
@@ -34,13 +56,33 @@
         <div class="row">
             <div class="col-12">
                 <h2>与 Dify 智能体对话</h2>
+
+                <!-- Session Controls -->
+                <div class="session-controls">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button class="btn btn-success" type="button" id="new-session-button">新建会话</button>
+                            <button class="btn btn-info" type="button" id="load-sessions-button">加载会话</button>
+                        </div>
+                        <div>
+                            <span id="current-session-info">当前会话: 无</span>
+                        </div>
+                    </div>
+
+                    <!-- Session List -->
+                    <div id="session-list" class="session-list" style="display: none;">
+                        <h5>会话列表</h5>
+                        <div id="sessions-container"></div>
+                    </div>
+                </div>
+
                 <div id="chat-container">
                     <!-- Messages will be displayed here -->
                     <div class="message agent-message">
                         <strong>智能体:</strong> 您好！我是 Dify 智能体，有什么可以帮助您的吗？
                     </div>
                 </div>
-                
+
                 <div class="input-group">
                     <input type="text" id="message-input" class="form-control" placeholder="输入您的消息..." aria-label="输入您的消息">
                     <button class="btn btn-primary" type="button" id="send-button">发送</button>
@@ -56,25 +98,41 @@
             const chatContainer = document.getElementById('chat-container');
             const messageInput = document.getElementById('message-input');
             const sendButton = document.getElementById('send-button');
-            
+            const newSessionButton = document.getElementById('new-session-button');
+            const loadSessionsButton = document.getElementById('load-sessions-button');
+            const sessionList = document.getElementById('session-list');
+            const sessionsContainer = document.getElementById('sessions-container');
+            const currentSessionInfo = document.getElementById('current-session-info');
+
+            // Check if user is logged in
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录');
+                window.location.href = '/login';
+                return;
+            }
+
+            // Current conversation ID
+            let currentConversationId = null;
+
             // Function to add a message to the chat container
             function addMessage(text, isUser) {
                 const messageDiv = document.createElement('div');
                 messageDiv.classList.add('message');
                 messageDiv.classList.add(isUser ? 'user-message' : 'agent-message');
-                
+
                 const messageContent = document.createElement('div');
                 messageContent.innerHTML = `<strong>${isUser ? '您:' : '智能体:'}</strong> ${text}`;
-                
+
                 messageDiv.appendChild(messageContent);
                 chatContainer.appendChild(messageDiv);
-                
+
                 // Scroll to the bottom of the chat container
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
-            
+
             // Function to send a message to the backend
-            function sendMessage() {
+            async function sendMessage() {
                 const message = messageInput.value.trim();
                 if (message === '') return;
 
@@ -92,109 +150,246 @@
                 agentMessageDiv.appendChild(agentMessageContent);
                 chatContainer.appendChild(agentMessageDiv);
 
-                // Use fetch with streaming for real-time updates
-                fetch('/api/chat-stream', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'text/event-stream, text/plain, */*'
-                    },
-                    body: JSON.stringify({
-                        inputs: {},
-                        query: message,
-                        responseMode: 'streaming'
-                    })
-                })
-                .then(response => {
+                // Prepare the request body
+                const requestBody = {
+                    inputs: {},
+                    query: message,
+                    responseMode: 'streaming'
+                };
+
+                // Include conversation ID if we're in a conversation
+                if (currentConversationId) {
+                    requestBody.conversationId = currentConversationId;
+                }
+
+                try {
+                    // Use fetch with streaming for real-time updates
+                    const response = await fetch('/api/authenticated/app/d2a5c47c-5644-49f0-bc20-6a67ac1a7b69/chat-stream', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'text/event-stream, text/plain, */*',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let agentResponse = '';
 
-                    function readStream() {
-                        reader.read().then(({ done, value }) => {
-                            if (done) {
-                                return;
-                            }
+                    async function readStream() {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            return;
+                        }
 
-                            // Decode the stream data
-                            const chunk = decoder.decode(value, { stream: true });
+                        // Decode the stream data
+                        const chunk = decoder.decode(value, { stream: true });
 
-                            // Process the SSE data to extract answer
-                            const lines = chunk.split('\n');
+                        // Process the SSE data to extract answer
+                        const lines = chunk.split('\n');
 
-                            lines.forEach(line => {
-                                // Handle both 'data: ' and 'data:' formats (with or without space after colon)
-                                if (line.startsWith('data: ')) {
-                                    const data = line.substring(6); // Remove 'data: ' prefix
-                                    if (data.trim() === '[DONE]' || data.trim() === '') {
-                                        return;
-                                    }
-
-                                    try {
-                                        const parsed = JSON.parse(data);
-                                        // Extract the answer from the response based on the event type
-                                        let answerText = '';
-                                        if (parsed.event === 'agent_message' && parsed.answer) {
-                                            answerText = parsed.answer;
-                                        } else if (parsed.event === 'message' && parsed.answer) {
-                                            answerText = parsed.answer;
-                                        } else if (parsed.answer) {
-                                            // Fallback: if there's answer regardless of event type
-                                            answerText = parsed.answer;
-                                        }
-
-                                        if (answerText) {
-                                            agentResponse += answerText;
-                                        }
-                                    } catch (e) {
-                                        // If it's not JSON, ignore (might be other SSE events)
-                                    }
-                                } else if (line.startsWith('data:')) {
-                                    // Handle case where there's no space after colon
-                                    const data = line.substring(5); // Remove 'data:' prefix
-                                    if (data.trim() === '[DONE]' || data.trim() === '') {
-                                        return;
-                                    }
-
-                                    try {
-                                        const parsed = JSON.parse(data);
-                                        // Extract the answer from the response based on the event type
-                                        let answerText = '';
-                                        if (parsed.event === 'agent_message' && parsed.answer) {
-                                            answerText = parsed.answer;
-                                        } else if (parsed.event === 'message' && parsed.answer) {
-                                            answerText = parsed.answer;
-                                        } else if (parsed.answer) {
-                                            // Fallback: if there's answer regardless of event type
-                                            answerText = parsed.answer;
-                                        }
-
-                                        if (answerText) {
-                                            agentResponse += answerText;
-                                        }
-                                    } catch (e) {
-                                        // If it's not JSON, ignore (might be other SSE events)
-                                    }
+                        for (const line of lines) {
+                            // Handle both 'data: ' and 'data:' formats (with or without space after colon)
+                            if (line.startsWith('data: ')) {
+                                const data = line.substring(6); // Remove 'data: ' prefix
+                                if (data.trim() === '[DONE]' || data.trim() === '') {
+                                    continue;
                                 }
-                            });
 
-                            // Update the agent message content
-                            agentMessageContent.innerHTML = `<strong>智能体:</strong> ${agentResponse}`;
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    // Extract the answer from the response based on the event type
+                                    let answerText = '';
+                                    if (parsed.event === 'agent_message' && parsed.answer) {
+                                        answerText = parsed.answer;
+                                    } else if (parsed.event === 'message' && parsed.answer) {
+                                        answerText = parsed.answer;
+                                    } else if (parsed.answer) {
+                                        // Fallback: if there's answer regardless of event type
+                                        answerText = parsed.answer;
+                                    }
 
-                            // Scroll to the bottom of the chat container
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    // Extract conversation ID if present
+                                    if (parsed.conversation_id && !currentConversationId) {
+                                        currentConversationId = parsed.conversation_id;
+                                        updateCurrentSessionInfo();
+                                    }
 
-                            // Continue reading the stream
-                            readStream();
-                        });
+                                    if (answerText) {
+                                        agentResponse += answerText;
+                                    }
+                                } catch (e) {
+                                    // If it's not JSON, ignore (might be other SSE events)
+                                }
+                            } else if (line.startsWith('data:')) {
+                                // Handle case where there's no space after colon
+                                const data = line.substring(5); // Remove 'data:' prefix
+                                if (data.trim() === '[DONE]' || data.trim() === '') {
+                                    continue;
+                                }
+
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    // Extract the answer from the response based on the event type
+                                    let answerText = '';
+                                    if (parsed.event === 'agent_message' && parsed.answer) {
+                                        answerText = parsed.answer;
+                                    } else if (parsed.event === 'message' && parsed.answer) {
+                                        answerText = parsed.answer;
+                                    } else if (parsed.answer) {
+                                        // Fallback: if there's answer regardless of event type
+                                        answerText = parsed.answer;
+                                    }
+
+                                    // Extract conversation ID if present
+                                    if (parsed.conversation_id && !currentConversationId) {
+                                        currentConversationId = parsed.conversation_id;
+                                        updateCurrentSessionInfo();
+                                    }
+
+                                    if (answerText) {
+                                        agentResponse += answerText;
+                                    }
+                                } catch (e) {
+                                    // If it's not JSON, ignore (might be other SSE events)
+                                }
+                            }
+                        }
+
+                        // Update the agent message content
+                        agentMessageContent.innerHTML = `<strong>智能体:</strong> ${agentResponse}`;
+
+                        // Scroll to the bottom of the chat container
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                        // Continue reading the stream
+                        await readStream();
                     }
 
-                    readStream();
-                })
-                .catch(error => {
+                    await readStream();
+                } catch (error) {
                     console.error('Error:', error);
                     agentMessageContent.innerHTML = '<strong>智能体:</strong> 发送消息时出现错误';
-                });
+                }
+            }
+
+            // Function to create a new session
+            async function createNewSession() {
+                try {
+                    const response = await fetch('/api/conversations', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            appId: 'd2a5c47c-5644-49f0-bc20-6a67ac1a7b69'
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        currentConversationId = data.conversationId;
+                        updateCurrentSessionInfo();
+                        chatContainer.innerHTML = '<div class="message agent-message"><strong>智能体:</strong> 新会话已创建，您可以开始对话了。</div>';
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    } else {
+                        console.error('Failed to create session');
+                    }
+                } catch (error) {
+                    console.error('Error creating session:', error);
+                }
+            }
+
+            // Function to load user's sessions
+            async function loadSessions() {
+                try {
+                    const response = await fetch('/api/authenticated/app/d2a5c47c-5644-49f0-bc20-6a67ac1a7b69/conversations', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const sessions = await response.json();
+                        sessionsContainer.innerHTML = '';
+
+                        if (sessions.length === 0) {
+                            sessionsContainer.innerHTML = '<div class="session-item">没有找到会话</div>';
+                        } else {
+                            sessions.forEach(session => {
+                                const sessionElement = document.createElement('div');
+                                sessionElement.classList.add('session-item');
+                                sessionElement.textContent = `会话 ${session.conversationId.substring(0, 8)}... - ${new Date(session.createdAt).toLocaleString()}`;
+
+                                if (session.conversationId === currentConversationId) {
+                                    sessionElement.classList.add('current-session');
+                                }
+
+                                sessionElement.addEventListener('click', () => {
+                                    currentConversationId = session.conversationId;
+                                    updateCurrentSessionInfo();
+                                    loadSessionHistory(session.conversationId);
+                                    sessionList.style.display = 'none';
+                                });
+
+                                sessionsContainer.appendChild(sessionElement);
+                            });
+                        }
+
+                        sessionList.style.display = 'block';
+                    } else {
+                        console.error('Failed to load sessions');
+                    }
+                } catch (error) {
+                    console.error('Error loading sessions:', error);
+                }
+            }
+
+            // Function to load session history
+            async function loadSessionHistory(conversationId) {
+                try {
+                    const response = await fetch(`/api/authenticated/app/d2a5c47c-5644-49f0-bc20-6a67ac1a7b69/history?conversationId=${conversationId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const interactions = await response.json();
+                        chatContainer.innerHTML = '';
+
+                        if (interactions.length === 0) {
+                            addMessage('智能体: 没有找到此会话的历史记录', false);
+                        } else {
+                            interactions.forEach(interaction => {
+                                addMessage(interaction.input, true);
+                                addMessage(interaction.output, false);
+                            });
+                        }
+                    } else {
+                        console.error('Failed to load session history');
+                    }
+                } catch (error) {
+                    console.error('Error loading session history:', error);
+                }
+            }
+
+            // Function to update current session info display
+            function updateCurrentSessionInfo() {
+                if (currentConversationId) {
+                    currentSessionInfo.textContent = `当前会话: ${currentConversationId.substring(0, 8)}...`;
+                } else {
+                    currentSessionInfo.textContent = '当前会话: 无';
+                }
             }
 
             // Event listener for the send button
@@ -206,6 +401,15 @@
                     sendMessage();
                 }
             });
+
+            // Event listener for new session button
+            newSessionButton.addEventListener('click', createNewSession);
+
+            // Event listener for load sessions button
+            loadSessionsButton.addEventListener('click', loadSessions);
+
+            // Initially hide the session list
+            sessionList.style.display = 'none';
         });
     </script>
 </body>

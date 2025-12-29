@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.Map;
 
@@ -76,18 +77,16 @@ public class DifyController {
     }
 
     @PostMapping("/config/api-key")
-    public ResponseEntity<String> setApiKey(@RequestBody Map<String, String> requestBody) {
+    public Mono<ResponseEntity<String>> setApiKey(@RequestBody Map<String, String> requestBody) {
         String apiKey = requestBody.get("apiKey");
         if (apiKey == null || apiKey.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("API key is required");
+            return Mono.just(ResponseEntity.badRequest().body("API key is required"));
         }
-        
-        try {
-            apiKeyService.saveApiKey(apiKey);
-            return ResponseEntity.ok("API key saved successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error saving API key: " + e.getMessage());
-        }
+
+        return Mono.fromRunnable(() -> apiKeyService.saveApiKey(apiKey))
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(Mono.defer(() -> Mono.just(ResponseEntity.ok("API key saved successfully"))))
+                .onErrorReturn(ResponseEntity.status(500).body("Error saving API key: " + "Exception occurred"));
     }
 
     @GetMapping("/config/api-key")

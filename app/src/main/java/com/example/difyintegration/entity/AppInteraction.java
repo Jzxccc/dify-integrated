@@ -28,6 +28,21 @@ public class AppInteraction {
     @Column(name = "user_id", length = 255)
     private String userId;
 
+    @Column(name = "conversation_id", length = 255)
+    private String conversationId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id", referencedColumnName = "conversation_id", insertable = false, updatable = false)
+    private Conversation conversation;
+
+    public String getConversationId() {
+        return conversationId;
+    }
+
+    public void setConversationId(String conversationId) {
+        this.conversationId = conversationId;
+    }
+
     @Column(name = "input", nullable = false, columnDefinition = "TEXT")
     private String input;
 

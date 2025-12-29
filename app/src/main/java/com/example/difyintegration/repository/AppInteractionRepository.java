@@ -21,6 +21,8 @@ public interface AppInteractionRepository extends JpaRepository<AppInteraction, 
 
     Page<AppInteraction> findByUserId(String userId, Pageable pageable);
 
+    List<AppInteraction> findByConversationId(String conversationId);
+
     @Query("SELECT ai FROM AppInteraction ai WHERE ai.appId = :appId AND ai.userId = :userId")
     List<AppInteraction> findByAppIdAndUserId(@Param("appId") String appId, @Param("userId") String userId);
 

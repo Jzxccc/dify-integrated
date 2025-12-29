@@ -21,7 +21,7 @@ public class AppChatRequestDto {
     private String query;
 
     @JsonProperty("response_mode")
-    private String responseMode = "blocking"; // or "streaming"
+    private String responseMode = "streaming"; // or "blocking"
 
     @JsonProperty("conversation_id")
     private String conversationId; // Optional, for continuing a conversation

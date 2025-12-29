@@ -30,6 +30,9 @@ public class AppInteractionService {
         interaction.setInput(request.getQuery());
         interaction.setTimestamp(LocalDateTime.now());
 
+        // If a conversation ID is provided, set it in the interaction
+        interaction.setConversationId(request.getConversationId());
+
         // Save the interaction with input data before sending to Dify
         AppInteraction savedInteraction = appInteractionRepository.save(interaction);
 
@@ -75,5 +78,13 @@ public class AppInteractionService {
 
     public List<AppInteraction> getInteractionsByUserId(String userId) {
         return appInteractionRepository.findByUserId(userId);
+    }
+
+    public List<AppInteraction> getInteractionsByConversationId(String conversationId) {
+        return appInteractionRepository.findByConversationId(conversationId);
+    }
+
+    public List<AppInteraction> getInteractionsByAppIdAndUserId(String appId, String userId) {
+        return appInteractionRepository.findByAppIdAndUserId(appId, userId);
     }
 }
