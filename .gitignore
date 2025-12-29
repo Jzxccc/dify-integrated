@@ -1,0 +1,6 @@
+app/target
+.idea/
+*.class
+.qwen
+*.log
+node_modules/

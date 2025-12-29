@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>对话界面 - Dify 智能体集成</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        #chat-container {
+            height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #d1ecf1;
+            text-align: right;
+        }
+        .agent-message {
+            background-color: #f8d7da;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h2>与 Dify 智能体对话</h2>
+                <div id="chat-container">
+                    <!-- Messages will be displayed here -->
+                    <div class="message agent-message">
+                        <strong>智能体:</strong> 您好！我是 Dify 智能体，有什么可以帮助您的吗？
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <input type="text" id="message-input" class="form-control" placeholder="输入您的消息..." aria-label="输入您的消息">
+                    <button class="btn btn-primary" type="button" id="send-button">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/event-source-polyfill@1.0.31/src/eventsource.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatContainer = document.getElementById('chat-container');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            
+            // Function to add a message to the chat container
+            function addMessage(text, isUser) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(isUser ? 'user-message' : 'agent-message');
+                
+                const messageContent = document.createElement('div');
+                messageContent.innerHTML = `<strong>${isUser ? '您:' : '智能体:'}</strong> ${text}`;
+                
+                messageDiv.appendChild(messageContent);
+                chatContainer.appendChild(messageDiv);
+                
+                // Scroll to the bottom of the chat container
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            // Function to send a message to the backend
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (message === '') return;
+
+                // Add user message to the chat
+                addMessage(message, true);
+
+                // Clear the input field
+                messageInput.value = '';
+
+                // Create a new agent message div to append streaming content
+                const agentMessageDiv = document.createElement('div');
+                agentMessageDiv.classList.add('message', 'agent-message');
+                const agentMessageContent = document.createElement('div');
+                agentMessageContent.innerHTML = '<strong>智能体:</strong> ';
+                agentMessageDiv.appendChild(agentMessageContent);
+                chatContainer.appendChild(agentMessageDiv);
+
+                // Use fetch with streaming for real-time updates
+                fetch('/api/chat-stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream, text/plain, */*'
+                    },
+                    body: JSON.stringify({
+                        inputs: {},
+                        query: message,
+                        responseMode: 'streaming'
+                    })
+                })
+                .then(response => {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let agentResponse = '';
+
+                    function readStream() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                return;
+                            }
+
+                            // Decode the stream data
+                            const chunk = decoder.decode(value, { stream: true });
+
+                            // Process the SSE data to extract answer
+                            const lines = chunk.split('\n');
+
+                            lines.forEach(line => {
+                                // Handle both 'data: ' and 'data:' formats (with or without space after colon)
+                                if (line.startsWith('data: ')) {
+                                    const data = line.substring(6); // Remove 'data: ' prefix
+                                    if (data.trim() === '[DONE]' || data.trim() === '') {
+                                        return;
+                                    }
+
+                                    try {
+                                        const parsed = JSON.parse(data);
+                                        // Extract the answer from the response based on the event type
+                                        let answerText = '';
+                                        if (parsed.event === 'agent_message' && parsed.answer) {
+                                            answerText = parsed.answer;
+                                        } else if (parsed.event === 'message' && parsed.answer) {
+                                            answerText = parsed.answer;
+                                        } else if (parsed.answer) {
+                                            // Fallback: if there's answer regardless of event type
+                                            answerText = parsed.answer;
+                                        }
+
+                                        if (answerText) {
+                                            agentResponse += answerText;
+                                        }
+                                    } catch (e) {
+                                        // If it's not JSON, ignore (might be other SSE events)
+                                    }
+                                } else if (line.startsWith('data:')) {
+                                    // Handle case where there's no space after colon
+                                    const data = line.substring(5); // Remove 'data:' prefix
+                                    if (data.trim() === '[DONE]' || data.trim() === '') {
+                                        return;
+                                    }
+
+                                    try {
+                                        const parsed = JSON.parse(data);
+                                        // Extract the answer from the response based on the event type
+                                        let answerText = '';
+                                        if (parsed.event === 'agent_message' && parsed.answer) {
+                                            answerText = parsed.answer;
+                                        } else if (parsed.event === 'message' && parsed.answer) {
+                                            answerText = parsed.answer;
+                                        } else if (parsed.answer) {
+                                            // Fallback: if there's answer regardless of event type
+                                            answerText = parsed.answer;
+                                        }
+
+                                        if (answerText) {
+                                            agentResponse += answerText;
+                                        }
+                                    } catch (e) {
+                                        // If it's not JSON, ignore (might be other SSE events)
+                                    }
+                                }
+                            });
+
+                            // Update the agent message content
+                            agentMessageContent.innerHTML = `<strong>智能体:</strong> ${agentResponse}`;
+
+                            // Scroll to the bottom of the chat container
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                            // Continue reading the stream
+                            readStream();
+                        });
+                    }
+
+                    readStream();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    agentMessageContent.innerHTML = '<strong>智能体:</strong> 发送消息时出现错误';
+                });
+            }
+
+            // Event listener for the send button
+            sendButton.addEventListener('click', sendMessage);
+
+            // Event listener for pressing Enter in the input field
+            messageInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
