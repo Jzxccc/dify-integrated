@@ -6,19 +6,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:myDefaultSecretKeyForDevelopmentPurposesOnlyAndShouldBeChanged}")
+    @Value("${jwt.secret:SlRXX1NoYXJlZF9TZWNyZXRfS2V5XzUxMl9iaXRzX2Zvcl9IUzUxMg==}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}") // 24小时
     private long expiration;
 
     private Key getSignKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        byte[] keyBytes = Base64.getDecoder().decode(secret);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String extractUsername(String token) {
@@ -55,7 +57,7 @@ public class JwtUtil {
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignKey(), SignatureAlgorithm.HS512)
+                .signWith(getSignKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
