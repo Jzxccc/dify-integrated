@@ -15,6 +15,7 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Component
 @RequiredArgsConstructor
@@ -45,9 +46,14 @@ public class JwtAuthenticationWebFilter implements WebFilter {
         }
 
         if (username != null && exchange.getAttribute("authentication") == null) {
-            return userService.findByUsername(username)
-                    .map(user -> {
-                        if (jwtUtil.validateToken(jwtToken, username)) {
+            final String finalUsername = username;
+            final String finalJwtToken = jwtToken;
+
+            return Mono.fromCallable(() -> userService.findByUsername(finalUsername))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .flatMap(optionalUser -> {
+                        if (optionalUser.isPresent() && jwtUtil.validateToken(finalJwtToken, finalUsername)) {
+                            com.example.difyintegration.entity.User user = optionalUser.get();
                             UserDetails userDetails = org.springframework.security.core.userdetails.User
                                     .withUsername(user.getUsername())
                                     .password(user.getPassword())
@@ -60,12 +66,6 @@ public class JwtAuthenticationWebFilter implements WebFilter {
                             SecurityContext context = new SecurityContextImpl();
                             context.setAuthentication(authToken);
 
-                            return context;
-                        }
-                        return null;
-                    })
-                    .flatMap(context -> {
-                        if (context != null) {
                             return chain.filter(exchange)
                                     .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(context)));
                         } else {
