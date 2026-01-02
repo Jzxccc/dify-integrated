@@ -6,6 +6,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class PageController {
 
+    @GetMapping("/")
+    public String home() {
+        return "index"; // This will map to src/main/resources/templates/index.html
+    }
+
     @GetMapping("/login")
     public String login() {
         return "login";
@@ -23,11 +28,6 @@ public class PageController {
 
     @GetMapping("/config")
     public String config() {
-        return "config";
-    }
-
-    @GetMapping("/")
-    public String index() {
-        return "index";
+        return "config"; // This will map to src/main/resources/templates/config.html
     }
 }
