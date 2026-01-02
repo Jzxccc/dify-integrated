@@ -45,7 +45,7 @@ public class DifyController {
         // For blocking mode, process normally
         return agentConversationManager.processConversation(updatedRequest)
                 .map(response -> ResponseEntity.ok(response))
-                .onErrorReturn(ResponseEntity.badRequest().build());
+                .onErrorReturn(ResponseEntity.status(500).body(new DifyChatResponse()));
     }
 
     @PostMapping(value = "/chat-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

@@ -36,7 +36,7 @@ public class AuthenticationController {
                 String token = jwtUtil.generateToken(authRequest.getUsername());
                 return ResponseEntity.ok(new AuthResponse(token, "Login successful"));
             } else {
-                return ResponseEntity.status(401).body(null);
+                return ResponseEntity.status(401).body(new AuthResponse(null, "Invalid credentials"));
             }
         })
         .subscribeOn(Schedulers.boundedElastic());
@@ -66,7 +66,7 @@ public class AuthenticationController {
             return ResponseEntity.ok(new AuthResponse(token, "Registration successful"));
         })
         .subscribeOn(Schedulers.boundedElastic())
-        .onErrorReturn(ResponseEntity.badRequest().body(null));
+        .onErrorReturn(ResponseEntity.status(500).body(new AuthResponse(null, "Registration error")));
     }
 
     @PostMapping("/logout")

@@ -123,7 +123,7 @@ public class AuthenticatedAppController {
 
             // Validate the app ID
             if (!"d2a5c47c-5644-49f0-bc20-6a67ac1a7b69".equals(appId)) {
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.badRequest().body(java.util.Collections.<AppInteraction>emptyList());
             }
 
             List<AppInteraction> interactions;
@@ -132,7 +132,7 @@ public class AuthenticatedAppController {
                 // If conversationId is provided, check if user has access to it
                 Optional<Conversation> conversationOpt = conversationService.findByIdAndUser(conversationId, user);
                 if (conversationOpt.isEmpty()) {
-                    return ResponseEntity.status(403).build();
+                    return ResponseEntity.status(403).body(java.util.Collections.<AppInteraction>emptyList());
                 }
                 // Get interactions for specific conversation
                 interactions = appInteractionService.getInteractionsByConversationId(conversationId);
@@ -156,7 +156,7 @@ public class AuthenticatedAppController {
 
             // Validate the app ID
             if (!"d2a5c47c-5644-49f0-bc20-6a67ac1a7b69".equals(appId)) {
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.badRequest().body(java.util.Collections.<Conversation>emptyList());
             }
 
             List<Conversation> conversations = conversationService.findByUser(user);
