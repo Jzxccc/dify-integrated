@@ -1,5 +1,7 @@
 package com.example.difyintegration.service;
 
+import com.example.difyintegration.annotation.AIService;
+import com.example.difyintegration.annotation.AIParam;
 import com.example.difyintegration.entity.Conversation;
 import com.example.difyintegration.entity.User;
 import com.example.difyintegration.repository.ConversationRepository;
@@ -19,7 +21,16 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
 
-    public Conversation createConversation(String appId, User user) {
+    @AIService(
+        name = "create_conversation",
+        description = "创建一个新的对话会话",
+        requiresAuth = true
+    )
+    public Conversation createConversation(
+        @AIParam(name = "appId", description = "应用ID", type = "string", required = true)
+        String appId,
+        @AIParam(name = "user", description = "用户对象", type = "object", required = true)
+        User user) {
         Conversation conversation = new Conversation();
         conversation.setAppId(appId);
         conversation.setUser(user);
@@ -27,19 +38,49 @@ public class ConversationService {
         return conversationRepository.save(conversation);
     }
 
-    public Optional<Conversation> findByIdAndUser(String conversationId, User user) {
+    @AIService(
+        name = "get_conversation_by_id_and_user",
+        description = "根据会话ID和用户获取会话信息",
+        requiresAuth = true
+    )
+    public Optional<Conversation> findByIdAndUser(
+        @AIParam(name = "conversationId", description = "会话ID", type = "string", required = true)
+        String conversationId,
+        @AIParam(name = "user", description = "用户对象", type = "object", required = true)
+        User user) {
         return conversationRepository.findByConversationIdAndUser(conversationId, user);
     }
 
-    public List<Conversation> findByUser(User user) {
+    @AIService(
+        name = "get_conversations_by_user",
+        description = "根据用户获取所有会话",
+        requiresAuth = true
+    )
+    public List<Conversation> findByUser(
+        @AIParam(name = "user", description = "用户对象", type = "object", required = true)
+        User user) {
         return conversationRepository.findByUserOrderByCreatedAtDesc(user);
     }
 
-    public Conversation updateConversation(Conversation conversation) {
+    @AIService(
+        name = "update_conversation",
+        description = "更新会话信息",
+        requiresAuth = true
+    )
+    public Conversation updateConversation(
+        @AIParam(name = "conversation", description = "会话对象", type = "object", required = true)
+        Conversation conversation) {
         return conversationRepository.save(conversation);
     }
 
-    public void endConversation(Conversation conversation) {
+    @AIService(
+        name = "end_conversation",
+        description = "结束一个会话",
+        requiresAuth = true
+    )
+    public void endConversation(
+        @AIParam(name = "conversation", description = "会话对象", type = "object", required = true)
+        Conversation conversation) {
         conversation.setStatus(Conversation.ConversationStatus.ENDED);
         conversation.setEndedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
@@ -68,7 +109,14 @@ public class ConversationService {
     /**
      * 手动清理过期会话的方法
      */
-    public void cleanupExpiredConversationsManually(int days) {
+    @AIService(
+        name = "cleanup_expired_conversations_manually",
+        description = "手动清理过期会话",
+        requiresAuth = true
+    )
+    public void cleanupExpiredConversationsManually(
+        @AIParam(name = "days", description = "天数", type = "integer", required = true)
+        int days) {
         LocalDateTime expirationTime = LocalDateTime.now().minusDays(days);
 
         List<Conversation> expiredConversations = conversationRepository

@@ -1,5 +1,7 @@
 package com.example.difyintegration.service;
 
+import com.example.difyintegration.annotation.AIService;
+import com.example.difyintegration.annotation.AIParam;
 import com.example.difyintegration.dto.DifyChatRequest;
 import com.example.difyintegration.dto.DifyChatResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +26,14 @@ public class DifyApiClient {
     @Value("${dify.api.base-url}")
     private String difyApiBaseUrl;
 
-    public Mono<DifyChatResponse> sendMessage(DifyChatRequest request) {
+    @AIService(
+        name = "send_message_to_dify",
+        description = "向Dify API发送消息",
+        requiresAuth = true
+    )
+    public Mono<DifyChatResponse> sendMessage(
+        @AIParam(name = "request", description = "Dify聊天请求", type = "object", required = true)
+        DifyChatRequest request) {
         return apiKeyService.getApiKey()
                 .flatMap(apiKey -> {
                     log.debug("Sending request to Dify API: {}", request);
@@ -71,7 +80,14 @@ public class DifyApiClient {
                 });
     }
 
-    public Flux<String> sendStreamMessage(DifyChatRequest request) {
+    @AIService(
+        name = "send_stream_message_to_dify",
+        description = "向Dify API发送流消息",
+        requiresAuth = true
+    )
+    public Flux<String> sendStreamMessage(
+        @AIParam(name = "request", description = "Dify聊天请求", type = "object", required = true)
+        DifyChatRequest request) {
         return apiKeyService.getApiKey()
                 .flatMapMany(apiKey -> {
                     log.debug("Sending stream request to Dify API: {}", request);

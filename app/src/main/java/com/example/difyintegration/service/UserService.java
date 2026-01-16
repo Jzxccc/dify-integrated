@@ -1,5 +1,7 @@
 package com.example.difyintegration.service;
 
+import com.example.difyintegration.annotation.AIService;
+import com.example.difyintegration.annotation.AIParam;
 import com.example.difyintegration.entity.User;
 import com.example.difyintegration.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,19 +18,51 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public Optional<User> findByUsername(String username) {
+    @AIService(
+        name = "find_user_by_username",
+        description = "根据用户名查找用户",
+        requiresAuth = false
+    )
+    public Optional<User> findByUsername(
+        @AIParam(name = "username", description = "用户名", type = "string", required = true)
+        String username) {
         return userRepository.findByUsername(username);
     }
 
-    public Optional<User> findByUserId(String userId) {
+    @AIService(
+        name = "find_user_by_user_id",
+        description = "根据用户ID查找用户",
+        requiresAuth = false
+    )
+    public Optional<User> findByUserId(
+        @AIParam(name = "userId", description = "用户ID", type = "string", required = true)
+        String userId) {
         return userRepository.findByUserId(userId);
     }
 
-    public Optional<User> findByEmail(String email) {
+    @AIService(
+        name = "find_user_by_email",
+        description = "根据邮箱查找用户",
+        requiresAuth = false
+    )
+    public Optional<User> findByEmail(
+        @AIParam(name = "email", description = "邮箱", type = "string", required = true)
+        String email) {
         return userRepository.findByEmail(email);
     }
 
-    public User createUser(String username, String email, String password) {
+    @AIService(
+        name = "create_user",
+        description = "创建新用户",
+        requiresAuth = false
+    )
+    public User createUser(
+        @AIParam(name = "username", description = "用户名", type = "string", required = true)
+        String username,
+        @AIParam(name = "email", description = "邮箱", type = "string", required = true)
+        String email,
+        @AIParam(name = "password", description = "密码", type = "string", required = true)
+        String password) {
         // 检查用户名或邮箱是否已存在
         if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Username already exists");
@@ -45,7 +79,14 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User save(User user) {
+    @AIService(
+        name = "save_user",
+        description = "保存用户信息",
+        requiresAuth = true
+    )
+    public User save(
+        @AIParam(name = "user", description = "用户对象", type = "object", required = true)
+        User user) {
         return userRepository.save(user);
     }
 }

@@ -1,5 +1,7 @@
 package com.example.difyintegration.service;
 
+import com.example.difyintegration.annotation.AIService;
+import com.example.difyintegration.annotation.AIParam;
 import com.example.difyintegration.dto.AppChatRequest;
 import com.example.difyintegration.entity.AppInteraction;
 import com.example.difyintegration.repository.AppInteractionRepository;
@@ -20,7 +22,16 @@ public class AppInteractionService {
     private final DifyAppClient difyAppClient;
     private final AppInteractionRepository appInteractionRepository;
 
-    public Mono<AppInteraction> processAppInteraction(String appId, AppChatRequest request) {
+    @AIService(
+        name = "process_app_interaction",
+        description = "处理应用交互",
+        requiresAuth = true
+    )
+    public Mono<AppInteraction> processAppInteraction(
+        @AIParam(name = "appId", description = "应用ID", type = "string", required = true)
+        String appId,
+        @AIParam(name = "request", description = "应用聊天请求", type = "object", required = true)
+        AppChatRequest request) {
         log.info("Processing app interaction for app: {}", appId);
 
         // Create a new interaction record
@@ -72,19 +83,49 @@ public class AppInteractionService {
                 });
     }
 
-    public List<AppInteraction> getInteractionsByAppId(String appId) {
+    @AIService(
+        name = "get_interactions_by_app_id",
+        description = "根据应用ID获取交互记录",
+        requiresAuth = true
+    )
+    public List<AppInteraction> getInteractionsByAppId(
+        @AIParam(name = "appId", description = "应用ID", type = "string", required = true)
+        String appId) {
         return appInteractionRepository.findByAppId(appId);
     }
 
-    public List<AppInteraction> getInteractionsByUserId(String userId) {
+    @AIService(
+        name = "get_interactions_by_user_id",
+        description = "根据用户ID获取交互记录",
+        requiresAuth = true
+    )
+    public List<AppInteraction> getInteractionsByUserId(
+        @AIParam(name = "userId", description = "用户ID", type = "string", required = true)
+        String userId) {
         return appInteractionRepository.findByUserId(userId);
     }
 
-    public List<AppInteraction> getInteractionsByConversationId(String conversationId) {
+    @AIService(
+        name = "get_interactions_by_conversation_id",
+        description = "根据会话ID获取交互记录",
+        requiresAuth = true
+    )
+    public List<AppInteraction> getInteractionsByConversationId(
+        @AIParam(name = "conversationId", description = "会话ID", type = "string", required = true)
+        String conversationId) {
         return appInteractionRepository.findByConversationId(conversationId);
     }
 
-    public List<AppInteraction> getInteractionsByAppIdAndUserId(String appId, String userId) {
+    @AIService(
+        name = "get_interactions_by_app_id_and_user_id",
+        description = "根据应用ID和用户ID获取交互记录",
+        requiresAuth = true
+    )
+    public List<AppInteraction> getInteractionsByAppIdAndUserId(
+        @AIParam(name = "appId", description = "应用ID", type = "string", required = true)
+        String appId,
+        @AIParam(name = "userId", description = "用户ID", type = "string", required = true)
+        String userId) {
         return appInteractionRepository.findByAppIdAndUserId(appId, userId);
     }
 }
