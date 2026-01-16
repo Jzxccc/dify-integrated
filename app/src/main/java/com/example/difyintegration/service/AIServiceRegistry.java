@@ -121,7 +121,7 @@ public class AIServiceRegistry {
     public List<ServiceInfo> getServicesByCategory(String category) {
         return serviceMap.values().stream()
                 .filter(serviceInfo -> serviceInfo.getCategory().equals(category))
-                .toList();
+                .collect(Collectors.toList());
     }
 
     /**

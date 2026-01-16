@@ -22,7 +22,7 @@ public class DriverFramework {
      */
     public void initialize() {
         log.info("Initializing Driver Framework...");
-        log.info("Driver Framework initialized successfully with {} services registered", 
+        log.info("Driver Framework initialized successfully with {} services registered",
                  serviceRegistry.getAllServiceNames().size());
     }
 
@@ -39,5 +39,12 @@ public class DriverFramework {
      */
     public AIServiceRegistry getServiceRegistry() {
         return serviceRegistry;
+    }
+
+    /**
+     * 获取服务执行器
+     */
+    public AIServiceExecutor getServiceExecutor() {
+        return serviceExecutor;
     }
 }

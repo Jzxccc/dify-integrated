@@ -84,14 +84,14 @@ class AppInteractionServiceTest {
         interaction2.setAppId(appId);
         List<AppInteraction> expectedInteractions = List.of(interaction1, interaction2);
 
-        when(appInteractionRepository.findByAppIdOrderByTimestampDesc(appId)).thenReturn(expectedInteractions);
+        when(appInteractionRepository.findByAppId(appId)).thenReturn(expectedInteractions);
 
         // When
         var result = appInteractionService.getInteractionsByAppId(appId);
 
         // Then
         assertEquals(2, result.size());
-        verify(appInteractionRepository).findByAppIdOrderByTimestampDesc(appId);
+        verify(appInteractionRepository).findByAppId(appId);
     }
 
     @Test
@@ -104,13 +104,13 @@ class AppInteractionServiceTest {
         interaction2.setUserId(userId);
         List<AppInteraction> expectedInteractions = List.of(interaction1, interaction2);
 
-        when(appInteractionRepository.findByUserIdOrderByTimestampDesc(userId)).thenReturn(expectedInteractions);
+        when(appInteractionRepository.findByUserId(userId)).thenReturn(expectedInteractions);
 
         // When
         var result = appInteractionService.getInteractionsByUserId(userId);
 
         // Then
         assertEquals(2, result.size());
-        verify(appInteractionRepository).findByUserIdOrderByTimestampDesc(userId);
+        verify(appInteractionRepository).findByUserId(userId);
     }
 }

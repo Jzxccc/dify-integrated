@@ -28,6 +28,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import reactor.core.publisher.Mono;
+
 @SpringBootTest
 @AutoConfigureWebMvc
 class AuthenticatedAppControllerTest {
@@ -66,7 +68,7 @@ class AuthenticatedAppControllerTest {
         Authentication mockAuth = new org.springframework.security.authentication.TestingAuthenticationToken(username, null);
         
         when(userService.findByUsername(username)).thenReturn(java.util.Optional.of(mockUser));
-        when(appInteractionService.processAppInteraction(eq(appId), any())).thenReturn(java.util.Optional.of(mockInteraction).map(java.util.Optional::get));
+        when(appInteractionService.processAppInteraction(eq(appId), any())).thenReturn(Mono.just(mockInteraction));
 
         // Act & Assert
         mockMvc.perform(post("/api/authenticated/app/{appId}/chat", appId)
@@ -102,7 +104,7 @@ class AuthenticatedAppControllerTest {
         
         when(userService.findByUsername(username)).thenReturn(java.util.Optional.of(mockUser));
         when(conversationService.findByIdAndUser(eq(conversationId), eq(mockUser))).thenReturn(Optional.of(mockConversation));
-        when(appInteractionService.processAppInteraction(eq(appId), any())).thenReturn(java.util.Optional.of(mockInteraction).map(java.util.Optional::get));
+        when(appInteractionService.processAppInteraction(eq(appId), any())).thenReturn(Mono.just(mockInteraction));
 
         // Act & Assert
         mockMvc.perform(post("/api/authenticated/app/{appId}/chat", appId)

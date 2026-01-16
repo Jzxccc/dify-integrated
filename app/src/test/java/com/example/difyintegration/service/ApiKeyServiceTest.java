@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import java.util.Optional;
 
@@ -47,11 +49,12 @@ class ApiKeyServiceTest {
         when(apiKeyRepository.findFirstByOrderByUpdatedAtDesc()).thenReturn(apiKey);
 
         // When
-        var result = apiKeyService.getApiKey();
+        Mono<String> result = apiKeyService.getApiKey();
 
         // Then
-        assertTrue(result.isPresent());
-        assertEquals("test-api-key", result.get());
+        StepVerifier.create(result)
+                .expectNext("test-api-key")
+                .verifyComplete();
     }
 
     @Test
@@ -60,9 +63,10 @@ class ApiKeyServiceTest {
         when(apiKeyRepository.findFirstByOrderByUpdatedAtDesc()).thenReturn(null);
 
         // When
-        var result = apiKeyService.getApiKey();
+        Mono<String> result = apiKeyService.getApiKey();
 
         // Then
-        assertTrue(result.isEmpty());
+        StepVerifier.create(result)
+                .verifyComplete(); // Should complete without emitting a value
     }
 }
